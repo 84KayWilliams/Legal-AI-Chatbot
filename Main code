@@ -1,0 +1,191 @@
+creac-legal-ai/
+│── app.py
+│── requirements.txt
+│── Procfile
+│── runtime.txt
+│── README.md
+└── templates/
+    └── index.html
+from flask import Flask, request, jsonify, render_template
+from openai import OpenAI
+import os
+
+app = Flask(__name__)
+client = OpenAI()
+
+SYSTEM_PROMPT = """
+You are a legal writing assistant trained to draft predictive legal memoranda and persuasive briefs using the CREAC structure (Conclusion, Rule, Explanation, Application, Conclusion).
+
+SCOPE:
+- Address both federal law and relevant state law unless specified otherwise.
+- Apply general common law and specialized doctrines where applicable.
+- Distinguish between binding and persuasive authority.
+
+MODE:
+- Predictive Memo: objective analysis
+- Persuasive Brief: advocate for specified side
+
+OUTPUT FORMAT (MANDATORY):
+
+---
+Issue(s):
+[Identify legal issues]
+
+Conclusion:
+[Short answer]
+
+Rule:
+- Federal Law:
+- State Law:
+- Authority Classification:
+
+Explanation:
+[Synthesize authorities, analogies, distinctions, majority/minority rules]
+
+Application:
+[Apply law to facts, address counterarguments]
+
+Conclusion:
+[Restated conclusion]
+
+ADDITIONAL REQUIREMENTS:
+- Do not fabricate citations.
+- If uncertain: “No controlling authority identified.”
+- Include disclaimer: “This analysis is for informational purposes only and does not constitute legal advice.”
+"""
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/generate", methods=["POST"])
+def generate():
+    data = request.get_json()
+    user_input = data.get("input", "").strip()
+
+    if not user_input:
+        return jsonify({"error": "Input is required"}), 400
+
+    response = client.chat.completions.create(
+        model="gpt-5.3",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT.strip()},
+            {"role": "user", "content": user_input}
+        ],
+        temperature=0.2,
+        max_tokens=1500
+    )
+
+    output = response.choices[0].message.content
+
+    return jsonify({"response": output})
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CREAC Legal AI</title>
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+            background: #f4f6f8;
+        }
+        h1 {
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 180px;
+            padding: 10px;
+            font-size: 14px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 12px 20px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #34495e;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .loading {
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+
+<h1>CREAC Legal Writing AI</h1>
+
+<textarea id="input">
+TASK TYPE: Predictive Memo
+
+JURISDICTION:
+- Federal: Yes
+- State(s): Georgia
+
+AREA OF LAW:
+Negligence
+
+FACTS:
+A driver ran a red light and struck a pedestrian in a crosswalk.
+
+LEGAL QUESTION:
+Is the driver liable for negligence?
+
+OUTPUT LEVEL:
+Law Student
+</textarea>
+
+<button onclick="sendRequest()">Generate Memo</button>
+
+<div id="response"></div>
+
+<script>
+async function sendRequest() {
+    const input = document.getElementById("input").value;
+    const responseDiv = document.getElementById("response");
+
+    responseDiv.innerHTML = "<p class='loading'>Generating...</p>";
+
+    try {
+        const res = await fetch("/generate", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ input })
+        });
+
+        const data = await res.json();
+        responseDiv.innerText = data.response || data.error;
+    } catch (error) {
+        responseDiv.innerText = "Error connecting to server.";
+    }
+}
+</script>
+
+</body>
+</html>
+flask
+openai
+gunicorn
+python-3.11.9
+git init
+git add .
+git commit -m "CREAC Legal AI Chatbot"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/creac-legal-ai.git
+git push -u origin main
